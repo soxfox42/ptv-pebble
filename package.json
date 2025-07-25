@@ -1,12 +1,12 @@
 {
   "name": "ptv-pebble",
-  "author": "MakeAwesomeHappen",
+  "author": "soxfox42",
   "version": "1.0.0",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {},
   "pebble": {
-    "displayName": "ptv-pebble",
+    "displayName": "PTV",
     "uuid": "eb4950b6-f3d7-4944-bc2f-3feec2561fa5",
     "sdkVersion": "3",
     "enableMultiJS": true,
