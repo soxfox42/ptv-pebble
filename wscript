@@ -3,7 +3,9 @@
 #
 # Feel free to customize this to your needs.
 #
+import json
 import os.path
+import waflib
 
 top = '.'
 out = 'build'
@@ -45,6 +47,26 @@ def build(ctx):
         else:
             binaries.append({'platform': platform, 'app_elf': app_elf})
     ctx.env = cached_env
+
+
+    commands = []
+    for group in ctx.groups:
+        for generator in group:
+            generator.post()
+            for task in generator.tasks:
+                if isinstance(task, waflib.Tools.c.c):
+                    task.exec_command, old_exec = lambda *_, **__: None, task.exec_command
+                    task.run()
+                    commands.append({
+                        "directory": getattr(task, 'cwd', ctx.path.abspath()),
+                        "arguments": task.last_cmd
+                            + ["-I" + ctx.env.PEBBLE_SDK_ROOT + "/../../toolchain/arm-none-eabi/arm-none-eabi/include"],
+                        "file": task.inputs[0].abspath(),
+                    })
+                    task.exec_command = old_exec
+    compile_commands_node = ctx.bldnode.make_node('compile_commands.json')
+    compile_commands_node.write(json.dumps(commands, indent=4))
+
 
     ctx.set_group('bundle')
     ctx.pbl_bundle(binaries=binaries,
