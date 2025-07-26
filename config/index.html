@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, intial-scale=1">
+  <title>PTV Config</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Overpass:ital,wght@0,100..900;1,100..900&display=swap"
+    rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Overpass', sans-serif;
+      background-color: #333333;
+      color: #ffffff;
+      margin: 0;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      margin: 0;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 16px;
+      background-color: #777777;
+      color: #ffffff;
+      border-radius: 8px;
+      border: none;
+      padding: 12px 12px 8px;
+      outline: none;
+
+      &:active {
+        background-color: #888888;
+      }
+    }
+
+    #submit {
+      background-color: #ff4700;
+
+      &:active {
+        background-color: #ff0000;
+      }
+    }
+
+    #cancel, #submit {
+      margin-top: auto;
+    }
+
+    input {
+      font-family: inherit;
+      font-size: 16px;
+      background-color: #ffffff;
+      color: #333333;
+      border: none;
+      padding: 12px;
+
+      &:focus {
+        outline: 1px solid #ffffff;
+        outline-offset: 2px;
+      }
+
+      &::placeholder {
+        color: #aaaaaa;
+      }
+    }
+
+    #search-container {
+      display: flex;
+      flex-direction: column;
+      border-radius: 8px;
+      overflow: hidden;
+      background-color: #ffffff;
+    }
+
+    .search-results {
+      overflow-y: scroll;
+      max-height: 200px;
+    }
+
+    .search-result {
+      background-color: #ffffff;
+      color: #333333;
+      padding: 12px;
+
+      & img {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+        vertical-align: bottom;
+      }
+    }
+
+    #directions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #add-route-dialog {
+      width: calc(100% - 48px);
+      height: calc(100% - 48px);
+      min-height: 300px;
+      background: #333333;
+      color: #ffffff;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+
+      &>div {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        height: 100%;
+      }
+    }
+
+    ::backdrop {
+      background-color: #00000066;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>PTV Config</h1>
+
+  <button id="add-route">Add Route</button>
+
+  <dialog id="add-route-dialog">
+    <div>
+      <h1>Add Route</h1>
+      <div id="search-container">
+        <input type="text" placeholder="Search stops" id="search">
+        <div class="search-results"></div>
+      </div>
+      <div id="directions"></div>
+
+      <button id="cancel">Cancel</button>
+    </div>
+  </dialog>
+
+  <button id="submit">Save</button>
+
+  <script>
+    const ICONS = {
+      0: "train.png",
+      1: "tram.png",
+      2: "bus.png",
+      3: "vline.png",
+      4: "bus.png",
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = params.get("return_to") ?? "pebblejs://close#";
+
+    let token = params.get("token");
+    if (!token) {
+      generateToken();
+    }
+
+    let selectedStop = null;
+
+    document.getElementById("add-route").addEventListener("click", () => {
+      const dialog = document.getElementById("add-route-dialog");
+      dialog.showModal();
+      document.getElementById("search").focus();
+    });
+
+    document.getElementById("cancel").addEventListener("click", () => {
+      const dialog = document.getElementById("add-route-dialog");
+      dialog.close();
+      document.getElementById("search").value = "";
+      document.querySelector(".search-results").innerHTML = "";
+      selectedStop = null;
+    });
+
+    let searchTimeout = null;
+    document.getElementById("search").addEventListener("input", (event) => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+      searchTimeout = setTimeout(performSearch, 500);
+    });
+
+    function sortResults(results, query) {
+      return results.sort((a, b) => {
+        const aIsPrefixMatch = a.stop_name.toLowerCase().startsWith(query);
+        const bIsPrefixMatch = b.stop_name.toLowerCase().startsWith(query);
+
+        if (aIsPrefixMatch && !bIsPrefixMatch) return -1;
+        if (!aIsPrefixMatch && bIsPrefixMatch) return 1;
+
+        if (a.stop_name.toLowerCase() < b.stop_name.toLowerCase()) return -1;
+        if (a.stop_name.toLowerCase() > b.stop_name.toLowerCase()) return 1;
+        return 0;
+      });
+    }
+
+    async function generateToken() {
+      const response = await fetch("https://core.soxfox.me/ptv/generateToken");
+      if (response.ok) {
+        const data = await response.json();
+        token = data.token;
+      } else {
+        console.error("Failed to generate token");
+      }
+    }
+
+    async function performSearch() {
+      const query = document.getElementById("search").value.toLowerCase();
+
+      if (query.length < 3) {
+        document.querySelector(".search-results").innerHTML = "";
+        return;
+      }
+
+      const response = await fetch(`https://core.soxfox.me/ptv/searchStops?token=${token}&searchTerm=${encodeURIComponent(query)}`);
+      const results = (await response.json()).results;
+      sortResults(results, query);
+
+      const resultsContainer = document.querySelector(".search-results");
+      resultsContainer.innerHTML = "";
+
+      for (const result of results) {
+        const resultElement = document.createElement("div");
+        resultElement.className = "search-result";
+        resultElement.textContent = result.stop_name;
+        resultElement.addEventListener("click", () => {
+          document.getElementById("search").value = result.stop_name;
+          selectedStop = result;
+          resultsContainer.innerHTML = "";
+          getDirections();
+        });
+
+        const iconElement = document.createElement("img");
+        iconElement.src = ICONS[result.route_type];
+
+        resultElement.prepend(iconElement);
+        resultsContainer.appendChild(resultElement);
+      }
+    }
+
+    async function getDirections() {
+      const response = await fetch(
+        `https://core.soxfox.me/ptv/getDepartures?token=${token}&routeType=${selectedStop.route_type}&stopID=${selectedStop.stop_id}`
+      );
+
+      console.log(selectedStop.stop_id, selectedStop.route_type);
+
+      const result = await response.json();
+      const directions = result.directions;
+
+      const directionsContainer = document.getElementById("directions");
+      directionsContainer.innerHTML = "";
+
+      for (const [_, direction] of Object.entries(directions)) {
+        const directionElement = document.createElement("button");
+        directionElement.className = "direction-result";
+        directionElement.textContent = `Add "${selectedStop.stop_name} to ${direction.direction_name}"`;
+        directionElement.addEventListener("click", () => {
+        });
+
+        directionsContainer.appendChild(directionElement);
+      }
+    }
+
+    document.getElementById("submit").addEventListener("click", () => {
+      window.location.href = returnTo + encodeURIComponent(JSON.stringify({
+        token: "abc",
+      }));
+    });
+  </script>
+</body>
+
+</html>
