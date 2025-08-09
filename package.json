@@ -21,7 +21,10 @@
       "watchface": false
     },
     "messageKeys": [
-      "dummy"
+      "notConfigured",
+      "name",
+      "time",
+      "minutes"
     ],
     "resources": {
       "media": []
