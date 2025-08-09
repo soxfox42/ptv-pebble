@@ -1,3 +1,4 @@
 .lock-waf_*_build
 .cache/
 build/
+node_modules/
