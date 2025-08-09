@@ -27,7 +27,14 @@
       "minutes"
     ],
     "resources": {
-      "media": []
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "icon",
+          "file": "icon.png",
+          "menuIcon": true
+        }
+      ]
     }
   }
 }
