@@ -1,6 +1,6 @@
 Pebble.addEventListener("showConfiguration", () => {
   const config = localStorage.getItem("config") || '{"favourites": []}';
-  const url = `http://soxfox.me/ptv?config=${encodeURIComponent(config)}`;
+  const url = `http://soxfox.me/ptv/?config=${encodeURIComponent(config)}`;
   Pebble.openURL(url);
 });
 
